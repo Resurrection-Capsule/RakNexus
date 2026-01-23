@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="res/icon.png" alt="RakNexus Logo" width="256" />
+  <img src="res/icon2.png" alt="RakNexus Logo" width="256" />
 </div>
 
 <h1 align="center">RakNexus</h1>
