@@ -169,8 +169,10 @@ public class RakBitStream
     
     public void WriteCompressed(uint value)
     {
+        // RakNet compresses the BIG-ENDIAN representation (template Write<T> reverses to
+        // network order before stripping zero bytes when DoEndianSwap() is true on x86).
         byte[] input = BitConverter.GetBytes(value);
-        if (!BitConverter.IsLittleEndian) Array.Reverse(input); 
+        if (BitConverter.IsLittleEndian) Array.Reverse(input);
 
         for (int i = 3; i > 0; i--)
         {
@@ -205,7 +207,8 @@ public class RakBitStream
                 byte[] temp = new byte[(bits+7)/8];
                 if (!ReadBits(temp, bits, true)) return false;
                 Array.Copy(temp, 0, buffer, 0, i + 1);
-                value = BitConverter.ToUInt32(buffer, 0); 
+                if (BitConverter.IsLittleEndian) Array.Reverse(buffer);
+                value = BitConverter.ToUInt32(buffer, 0);
                 return true;
             }
         }
@@ -214,7 +217,8 @@ public class RakBitStream
         byte[] b = new byte[1];
         if (isHalfZero) { if (!ReadBits(b, 4, true)) return false; buffer[0] = b[0]; }
         else { if (!ReadBits(b, 8, true)) return false; buffer[0] = b[0]; }
-        
+
+        if (BitConverter.IsLittleEndian) Array.Reverse(buffer);
         value = BitConverter.ToUInt32(buffer, 0);
         return true;
     }
@@ -337,7 +341,8 @@ public class RakBitStream
 
     public void Write(RakNetGUID guid)
     {
-        WriteNativeOrder(guid.G);
+        // RakNet serializes RakNetGUID via Write<uint64_t> → big-endian on the wire.
+        Write(guid.G);
     }
     
     public void WriteNativeOrder(ulong val)
@@ -347,7 +352,7 @@ public class RakBitStream
     }
     public bool Read(out RakNetGUID guid)
     {
-        if (ReadNativeOrder(out ulong g))
+        if (Read(out ulong g))
         {
             guid = new RakNetGUID(g);
             return true;
@@ -400,8 +405,10 @@ public class RakBitStream
         hiddenBytes[3] = (byte)~octet3;
         
         WriteBits(hiddenBytes, 32, true);
-        
+
+        // Port is written via Write<unsigned short> → big-endian on the wire (confirmed by capture: 0x0E4B=3659).
         byte[] portBytes = BitConverter.GetBytes(addr.Port);
+        if (BitConverter.IsLittleEndian) Array.Reverse(portBytes);
         WriteBits(portBytes, 16, true);
     }
     
@@ -421,6 +428,7 @@ public class RakBitStream
         
         byte[] portBytes = new byte[2];
         if (!ReadBits(portBytes, 16, true)) return false;
+        if (BitConverter.IsLittleEndian) Array.Reverse(portBytes);
         ushort port = BitConverter.ToUInt16(portBytes, 0);
         
         addr = new SystemAddress(binary, port);

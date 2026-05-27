@@ -166,8 +166,8 @@ public class RakNetSession
         RakNetGUID clientGuid;
         bs.Read(out clientGuid);
         
-        uint timestamp;
-        bs.ReadNativeOrder(out timestamp);
+        ulong timestamp;
+        bs.Read(out timestamp);
 
         Guid = clientGuid;
         
@@ -192,12 +192,13 @@ public class RakNetSession
             response.Write(SystemAddress.Unassigned); 
         }
         
-        response.WriteNativeOrder(timestamp);
-        response.WriteNativeOrder((uint)RakTime.GetTimeMS());
-        
+        // RakNetTime is 8 bytes (__GET_TIME_64BIT=1), big-endian on the wire.
+        response.Write(timestamp);
+        response.Write(RakTime.GetTimeMS());
+
         int actualSize = response.GetNumberOfBytesUsed();
         var responseData = response.GetData();
-        Console.WriteLine($"[RakNetSession] CONN_REQ_ACCEPTED size: {actualSize} bytes (expected: 77)");
+        Console.WriteLine($"[RakNetSession] CONN_REQ_ACCEPTED size: {actualSize} bytes (expected: 85)");
         Console.WriteLine($"[RakNetSession] CONN_REQ_ACCEPTED bytes: {BitConverter.ToString(responseData, 0, Math.Min(20, actualSize))}");
 
         SendInternal(response, PacketPriority.IMMEDIATE_PRIORITY, 
@@ -232,9 +233,9 @@ public class RakNetSession
             if (!bs.Read(out internalAddr)) break;
         }
         
-        uint sendPingTime, sendPongTime;
-        bs.ReadNativeOrder(out sendPingTime);
-        bs.ReadNativeOrder(out sendPongTime);
+        ulong sendPingTime, sendPongTime;
+        bs.Read(out sendPingTime);
+        bs.Read(out sendPongTime);
         
         byte o0 = (byte)((serverAddr.BinaryAddress >> 24) & 0xFF);
         byte o1 = (byte)((serverAddr.BinaryAddress >> 16) & 0xFF);
@@ -254,15 +255,15 @@ public class RakNetSession
     {
         var bs = new RakBitStream(packet.Data, packet.Data.Length, false);
         bs.IgnoreBytes(1);
-        uint clientTime;
-        bs.ReadNativeOrder(out clientTime);
-        
+        ulong clientTime;
+        bs.Read(out clientTime);
+
         Console.WriteLine($"[RakNetSession] Handling PING with clientTime={clientTime}");
-        
+
         var response = new RakBitStream();
         response.Write((byte)MessageId.ID_CONNECTED_PONG);
-        response.WriteNativeOrder(clientTime);
-        response.WriteNativeOrder((uint)RakTime.GetTimeMS());
+        response.Write(clientTime);
+        response.Write(RakTime.GetTimeMS());
         
         SendInternal(response, PacketPriority.IMMEDIATE_PRIORITY, 
             PacketReliability.UNRELIABLE, 0);
@@ -294,7 +295,7 @@ public class RakNetSession
     {
         var bs = new RakBitStream();
         bs.Write((byte)MessageId.ID_INTERNAL_PING);
-        bs.WriteNativeOrder((uint)nowMS);
+        bs.Write(nowMS);
         SendInternal(bs, PacketPriority.IMMEDIATE_PRIORITY, 
             PacketReliability.RELIABLE, 0);
     }
