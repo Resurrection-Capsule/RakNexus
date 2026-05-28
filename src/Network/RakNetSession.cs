@@ -56,7 +56,7 @@ public class RakNetSession
 
     public void QueueInternalPacket(InternalPacket packet)
     {
-        _reliability.sendQueue.Enqueue(packet);
+        _reliability.EnqueueSend(packet);
         
         if (packet.Reliability >= PacketReliability.RELIABLE)
         {
@@ -315,7 +315,7 @@ public class RakNetSession
             ReliableMessageNumber = 0
         };
         
-        _reliability.sendQueue.Enqueue(internalPacket);
+        _reliability.EnqueueSend(internalPacket);
         
         if (reliability >= PacketReliability.RELIABLE)
         {
@@ -354,7 +354,7 @@ public class RakNetSession
                 ReliableMessageNumber = 0
             };
             
-            _reliability.sendQueue.Enqueue(internalPacket);
+            _reliability.EnqueueSend(internalPacket);
             
             if (actualReliability >= PacketReliability.RELIABLE)
             {

@@ -43,6 +43,23 @@ public partial class ReliabilityLayer
 
     public void SetTimeoutTime(uint ms) => _timeoutTime = ms;
 
+    private static readonly int MaxDatagramPayload = RakConstants.MAXIMUM_MTU_SIZE - RakConstants.UDP_HEADER_SIZE;
+
+    /// <summary>
+    /// Enqueues an outbound message, fragmenting it into MTU-sized split packets first when it
+    /// exceeds the datagram payload limit. Without this an over-MTU packet (e.g. a LabsPlayerUpdate
+    /// carrying the squad) never fits the per-tick bandwidth and stalls the send queue forever.
+    /// The receiver reassembles fragments by SplitPacketId.
+    /// </summary>
+    public void EnqueueSend(InternalPacket packet)
+    {
+        lock (_syncLock)
+        {
+            foreach (var fragment in SplitPacketIfNeeded(packet, MaxDatagramPayload))
+                sendQueue.Enqueue(fragment);
+        }
+    }
+
     public bool IsDeadConnection(ulong curTimeMS)
     {
         lock (_syncLock)

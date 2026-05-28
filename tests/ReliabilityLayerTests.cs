@@ -115,4 +115,42 @@ public class ReliabilityLayerTests
         Deliver(rel, 0, packet, callback); // same datagram number → duplicate
         Assert.Equal(1, count);
     }
+
+    [Fact]
+    public void OversizedPacketIsFragmentedOnSend()
+    {
+        var rel = new ReliabilityLayer();
+        byte[] big = new byte[5000]; // > MTU, like a LabsPlayerUpdate carrying the squad
+        for (int i = 0; i < big.Length; i++) big[i] = (byte)(i & 0xFF);
+
+        rel.EnqueueSend(new InternalPacket
+        {
+            Data = big,
+            DataBitLength = big.Length * 8,
+            Reliability = PacketReliability.UNRELIABLE_WITH_ACK_RECEIPT
+        });
+
+        var fragments = rel.sendQueue.GetPacketsToAssemble(int.MaxValue);
+        Assert.True(fragments.Count > 1, "over-MTU packet must be split into multiple fragments");
+        Assert.All(fragments, f => Assert.True(f.SplitPacketCount > 1));
+
+        var reassembled = fragments.OrderBy(f => f.SplitPacketIndex).SelectMany(f => f.Data).ToArray();
+        Assert.Equal(big, reassembled);
+    }
+
+    [Fact]
+    public void SmallPacketIsNotFragmented()
+    {
+        var rel = new ReliabilityLayer();
+        rel.EnqueueSend(new InternalPacket
+        {
+            Data = Encoding.UTF8.GetBytes("small"),
+            DataBitLength = 5 * 8,
+            Reliability = PacketReliability.UNRELIABLE_WITH_ACK_RECEIPT
+        });
+
+        var fragments = rel.sendQueue.GetPacketsToAssemble(int.MaxValue);
+        Assert.Single(fragments);
+        Assert.Equal(0u, fragments[0].SplitPacketCount);
+    }
 }
