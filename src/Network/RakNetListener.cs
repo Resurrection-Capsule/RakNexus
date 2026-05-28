@@ -31,10 +31,23 @@ public class RakNetListener : IDisposable
         RakLog.Trace($"[RakNetListener] Server GUID: 0x{_serverGuid.G:X16}");
     }
 
+    // SIO_UDP_CONNRESET: on Windows a UDP socket throws SocketException 10054
+    // (ConnectionReset) on the next receive after an ICMP port-unreachable from a
+    // peer that just closed. Disabling it stops a normal client disconnect from
+    // killing the receive loop.
+    private const int SIO_UDP_CONNRESET = unchecked((int)0x9800000C);
+
     private void CreateSocket()
     {
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
+        if (OperatingSystem.IsWindows())
+        {
+            try { socket.IOControl(SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null); }
+            catch (SocketException) { }
+        }
+
         socket.Bind(new IPEndPoint(IPAddress.Any, _port));
         _socket = new UdpClient();
         _socket.Client = socket;
@@ -66,7 +79,16 @@ public class RakNetListener : IDisposable
             RakLog.Trace("[RakNetListener] Started receiving loop...");
             while (!_cts.Token.IsCancellationRequested)
             {
-                var result = await _socket.ReceiveAsync(_cts.Token);
+                System.Net.Sockets.UdpReceiveResult result;
+                try
+                {
+                    result = await _socket.ReceiveAsync(_cts.Token);
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode is SocketError.ConnectionReset or SocketError.MessageSize)
+                {
+                    RakLog.Trace($"[RakNetListener] Ignoring transient socket error {ex.SocketErrorCode}; continuing.");
+                    continue;
+                }
                 byte[] data = result.Buffer;
                 EndPoint remote = result.RemoteEndPoint;
                 if (data.Length == 0) continue;
