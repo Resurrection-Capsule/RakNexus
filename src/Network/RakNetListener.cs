@@ -1,4 +1,4 @@
-using RakNexus.Core;
+﻿using RakNexus.Core;
 using RakNexus.Protocol;
 using System.Collections.Concurrent;
 using System.Net;
@@ -28,7 +28,7 @@ public class RakNetListener : IDisposable
         Random.Shared.NextBytes(guidBytes);
         _serverGuid = new RakNetGUID(BitConverter.ToUInt64(guidBytes, 0));
         
-        Console.WriteLine($"[RakNetListener] Server GUID: 0x{_serverGuid.G:X16}");
+        RakLog.Trace($"[RakNetListener] Server GUID: 0x{_serverGuid.G:X16}");
     }
 
     private void CreateSocket()
@@ -39,14 +39,14 @@ public class RakNetListener : IDisposable
         _socket = new UdpClient();
         _socket.Client = socket;
 
-        Console.WriteLine($"[RakNetListener] Socket created on port {_port} with SO_REUSEADDR");
+        RakLog.Trace($"[RakNetListener] Socket created on port {_port} with SO_REUSEADDR");
     }
 
     public async Task StartAsync()
     {
         if (_running)
         {
-            Console.WriteLine("[RakNetListener] Already running!");
+            RakLog.Trace("[RakNetListener] Already running!");
             return;
         }
         
@@ -63,20 +63,20 @@ public class RakNetListener : IDisposable
             _running = true;
             _ = Task.Run(() => UpdateLoop(_cts.Token));
 
-            Console.WriteLine("[RakNetListener] Started receiving loop...");
+            RakLog.Trace("[RakNetListener] Started receiving loop...");
             while (!_cts.Token.IsCancellationRequested)
             {
                 var result = await _socket.ReceiveAsync(_cts.Token);
                 byte[] data = result.Buffer;
                 EndPoint remote = result.RemoteEndPoint;
                 if (data.Length == 0) continue;
-                Console.WriteLine($"[RakNetListener] UDP: len={data.Length}, first=0x{data[0]:X2} ({(MessageId)data[0]}), from={remote}");
+                RakLog.Trace($"[RakNetListener] UDP: len={data.Length}, first=0x{data[0]:X2} ({(MessageId)data[0]}), from={remote}");
                 if (data[0] == 0x09 || data[0] == (byte)MessageId.ID_OPEN_CONNECTION_REQUEST)
                 {
-                    Console.WriteLine($"[RakNetListener] DETECTED ID_OPEN_CONNECTION_REQUEST (0x{data[0]:X2})!");
+                    RakLog.Trace($"[RakNetListener] DETECTED ID_OPEN_CONNECTION_REQUEST (0x{data[0]:X2})!");
                 }
                 
-                Console.WriteLine($"[RakNetListener] HEXDUMP: {BitConverter.ToString(data, 0, Math.Min(data.Length, 32))}");
+                RakLog.Trace($"[RakNetListener] HEXDUMP: {BitConverter.ToString(data, 0, Math.Min(data.Length, 32))}");
                 
                 if (IsQosProbe(data))
                 {
@@ -84,7 +84,7 @@ public class RakNetListener : IDisposable
                     continue;
                 }
                 
-                Console.WriteLine("[RakNetListener] >>> NON-QOS PACKET RECEIVED <<<");
+                RakLog.Trace("[RakNetListener] >>> NON-QOS PACKET RECEIVED <<<");
 
                 if (IsOfflineMessage(data))
                 {
@@ -94,8 +94,8 @@ public class RakNetListener : IDisposable
                 {
                     if (!_sessions.TryGetValue(remote, out var session))
                     {
-                        Console.WriteLine($"[RakNetListener] Ignoring packet from unknown system {remote} (no offline handshake completed)");
-                        Console.WriteLine($"[RakNetListener] First byte: 0x{data[0]:X2} is NOT a recognized offline message ID");
+                        RakLog.Trace($"[RakNetListener] Ignoring packet from unknown system {remote} (no offline handshake completed)");
+                        RakLog.Trace($"[RakNetListener] First byte: 0x{data[0]:X2} is NOT a recognized offline message ID");
                         continue;
                     }
                     
@@ -105,31 +105,31 @@ public class RakNetListener : IDisposable
         }
         catch (OperationCanceledException)
         {
-            Console.WriteLine("[RakNetListener] Receive loop cancelled.");
+            RakLog.Trace("[RakNetListener] Receive loop cancelled.");
         }
         catch (ObjectDisposedException)
         {
-            Console.WriteLine("[RakNetListener] Socket disposed, stopping receive loop.");
+            RakLog.Trace("[RakNetListener] Socket disposed, stopping receive loop.");
         }
         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.Interrupted)
         {
-            Console.WriteLine("[RakNetListener] Socket interrupted, stopping receive loop.");
+            RakLog.Trace("[RakNetListener] Socket interrupted, stopping receive loop.");
         }
         catch (Exception ex)
         {
             if (_running)
-                Console.WriteLine($"[RakNetListener] FATAL: {ex}");
+                RakLog.Error($"[RakNetListener] FATAL: {ex}");
         }
         finally
         {
             _running = false;
-            Console.WriteLine("[RakNetListener] Receive loop stopped.");
+            RakLog.Trace("[RakNetListener] Receive loop stopped.");
         }
     }
 
     public void Stop()
     {
-        Console.WriteLine("[RakNetListener] Stopping...");
+        RakLog.Trace("[RakNetListener] Stopping...");
         _running = false;
         try { _cts.Cancel(); } catch { }
         try 
@@ -140,7 +140,7 @@ public class RakNetListener : IDisposable
         } 
         catch (Exception ex) 
         { 
-            Console.WriteLine($"[RakNetListener] Error closing socket: {ex.Message}"); 
+            RakLog.Error($"[RakNetListener] Error closing socket: {ex.Message}"); 
         }
         foreach (var session in _sessions.Values)
         {
@@ -148,7 +148,7 @@ public class RakNetListener : IDisposable
         }
         _sessions.Clear();
         
-        Console.WriteLine("[RakNetListener] Stopped.");
+        RakLog.Trace("[RakNetListener] Stopped.");
     }
     
     public void Dispose()
@@ -163,7 +163,7 @@ public class RakNetListener : IDisposable
 
     private async Task UpdateLoop(CancellationToken ct)
     {
-        Console.WriteLine("[RakNetListener] Update loop started");
+        RakLog.Trace("[RakNetListener] Update loop started");
         
         while (!ct.IsCancellationRequested && _running)
         {
@@ -185,11 +185,11 @@ public class RakNetListener : IDisposable
             catch (Exception ex)
             {
                 if (_running)
-                    Console.WriteLine($"[RakNetListener] Update error: {ex.Message}");
+                    RakLog.Error($"[RakNetListener] Update error: {ex.Message}");
             }
         }
         
-        Console.WriteLine("[RakNetListener] Update loop stopped");
+        RakLog.Trace("[RakNetListener] Update loop stopped");
     }
 
     private bool IsOfflineMessage(byte[] data)
@@ -237,7 +237,7 @@ public class RakNetListener : IDisposable
         
         if (packetId == (byte)MessageId.ID_OPEN_CONNECTION_REQUEST)
         {
-            Console.WriteLine($"[RakNetListener] OPEN_CONNECTION_REQUEST from {remote}");
+            RakLog.Trace($"[RakNetListener] OPEN_CONNECTION_REQUEST from {remote}");
             int requestLength = data.Length;
             var ipEp = (IPEndPoint)remote;
             var clientAddress = new SystemAddress(ipEp);
@@ -257,8 +257,8 @@ public class RakNetListener : IDisposable
             
             byte[] responseData = response.GetData();
             int responseLen = response.GetNumberOfBytesUsed();
-            Console.WriteLine($"[RakNetListener] Sending OPEN_CONNECTION_REPLY: {responseLen} bytes to {clientAddress}");
-            Console.WriteLine($"[RakNetListener] REPLY HEXDUMP: {BitConverter.ToString(responseData, 0, Math.Min(responseLen, 32))}");
+            RakLog.Trace($"[RakNetListener] Sending OPEN_CONNECTION_REPLY: {responseLen} bytes to {clientAddress}");
+            RakLog.Trace($"[RakNetListener] REPLY HEXDUMP: {BitConverter.ToString(responseData, 0, Math.Min(responseLen, 32))}");
             Send(responseData, responseLen, remote);
             
             if (!_sessions.TryGetValue(remote, out var session))
@@ -268,18 +268,18 @@ public class RakNetListener : IDisposable
                 
                 session.OnConnected += () => 
                 {
-                    Console.WriteLine($"[RakNetListener] Session Connected: {remote}");
+                    RakLog.Trace($"[RakNetListener] Session Connected: {remote}");
                     SessionConnected?.Invoke(session);
                 };
                 
                 session.Disconnected += (reason) =>
                 {
-                    Console.WriteLine($"[RakNetListener] Session Disconnected: {remote}");
+                    RakLog.Trace($"[RakNetListener] Session Disconnected: {remote}");
                     _sessions.TryRemove(remote, out _);
                 };
                 
                 _sessions.TryAdd(remote, session);
-                Console.WriteLine($"[RakNetListener] Created session for {remote} in UNVERIFIED state");
+                RakLog.Trace($"[RakNetListener] Created session for {remote} in UNVERIFIED state");
             }
         }
     }
@@ -288,24 +288,24 @@ public class RakNetListener : IDisposable
     {
         if (_socket == null || !_running)
         {
-            Console.WriteLine($"[RakNetListener.Send] Socket not available, skipping send");
+            RakLog.Trace($"[RakNetListener.Send] Socket not available, skipping send");
             return;
         }
         
         try
         {
-            Console.WriteLine($"[RakNetListener.Send] Sending {length} bytes to {remote}, First byte: 0x{data[0]:X2}");
+            RakLog.Trace($"[RakNetListener.Send] Sending {length} bytes to {remote}, First byte: 0x{data[0]:X2}");
             int sent = _socket.Send(data, length, (IPEndPoint)remote);
-            Console.WriteLine($"[RakNetListener.Send] Sent {sent} bytes successfully");
+            RakLog.Trace($"[RakNetListener.Send] Sent {sent} bytes successfully");
         }
         catch (ObjectDisposedException)
         {
-            Console.WriteLine($"[RakNetListener] Socket disposed, skipping send");
+            RakLog.Trace($"[RakNetListener] Socket disposed, skipping send");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[RakNetListener] Send Error: {ex.Message}");
-            Console.WriteLine($"[RakNetListener] Stack: {ex.StackTrace}");
+            RakLog.Error($"[RakNetListener] Send Error: {ex.Message}");
+            RakLog.Trace($"[RakNetListener] Stack: {ex.StackTrace}");
         }
     }
     
@@ -352,7 +352,7 @@ public class RakNetListener : IDisposable
             uint requestId = (uint)((data[12] << 24) | (data[13] << 16) | (data[14] << 8) | data[15]);
             uint ticks = (uint)((data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19]);
             
-            Console.WriteLine($"[RakNetListener] QoS V1 Probe: id={id}, secret=0x{requestSecret:X}, reqId={requestId}, ticks={ticks}");
+            RakLog.Trace($"[RakNetListener] QoS V1 Probe: id={id}, secret=0x{requestSecret:X}, reqId={requestId}, ticks={ticks}");
             
             response = new byte[64];
             
@@ -380,7 +380,7 @@ public class RakNetListener : IDisposable
         }
         else if (version == 2)
         {
-            Console.WriteLine($"[RakNetListener] QoS V2 Probe: id={id}, version={version}");
+            RakLog.Trace($"[RakNetListener] QoS V2 Probe: id={id}, version={version}");
             
             // V2 Response: 44 bytes (11 x uint32)
             // Based on C++ server.cpp:
@@ -412,12 +412,12 @@ public class RakNetListener : IDisposable
         }
         else
         {
-            Console.WriteLine($"[RakNetListener] Unknown QoS version: {version}");
+            RakLog.Trace($"[RakNetListener] Unknown QoS version: {version}");
             return;
         }
         
-        Console.WriteLine($"[RakNetListener] QoS V{version} Response: {response.Length} bytes to {ipEp}");
-        Console.WriteLine($"[RakNetListener] QoS Response HEXDUMP: {BitConverter.ToString(response, 0, Math.Min(response.Length, 44))}");
+        RakLog.Trace($"[RakNetListener] QoS V{version} Response: {response.Length} bytes to {ipEp}");
+        RakLog.Trace($"[RakNetListener] QoS Response HEXDUMP: {BitConverter.ToString(response, 0, Math.Min(response.Length, 44))}");
         
         Send(response, response.Length, remote);
     }

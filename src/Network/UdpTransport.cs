@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 
 namespace RakNexus.Network;
@@ -16,7 +16,7 @@ public class UdpTransport : IDisposable
         _socket.Client.ReceiveBufferSize = 1024 * 1024;
         _socket.Client.SendBufferSize = 1024 * 1024;
         
-        Console.WriteLine($"[UdpTransport] Socket bound to port {port}");
+        RakLog.Trace($"[UdpTransport] Socket bound to port {port}");
     }
 
     public async Task<(int len, EndPoint remote)> ReceiveAsync(byte[] buffer)
@@ -27,7 +27,7 @@ public class UdpTransport : IDisposable
             
             if (result.Buffer.Length > buffer.Length)
             {
-                Console.WriteLine($"[UdpTransport] ⚠️ Received packet too large! " +
+                RakLog.Trace($"[UdpTransport] âš ï¸ Received packet too large! " +
                     $"Got {result.Buffer.Length} bytes, buffer is {buffer.Length} bytes");
                 return (0, result.RemoteEndPoint);
             }
@@ -37,7 +37,7 @@ public class UdpTransport : IDisposable
         }
         catch (SocketException ex)
         {
-            Console.WriteLine($"[UdpTransport] ReceiveAsync error: {ex.Message}");
+            RakLog.Error($"[UdpTransport] ReceiveAsync error: {ex.Message}");
             return (0, new IPEndPoint(IPAddress.Any, 0));
         }
     }
@@ -46,7 +46,7 @@ public class UdpTransport : IDisposable
     {
         if (_disposed)
         {
-            Console.WriteLine("[UdpTransport] ⚠️ Attempted to send on disposed socket");
+            RakLog.Trace("[UdpTransport] âš ï¸ Attempted to send on disposed socket");
             return;
         }
         try
@@ -59,7 +59,7 @@ public class UdpTransport : IDisposable
         }
         catch (SocketException ex)
         {
-            Console.WriteLine($"[UdpTransport] Send error to {remote}: {ex.Message}");
+            RakLog.Error($"[UdpTransport] Send error to {remote}: {ex.Message}");
         }
     }
 
@@ -67,7 +67,7 @@ public class UdpTransport : IDisposable
     {
         if (_disposed)
         {
-            Console.WriteLine("[UdpTransport] ⚠️ Attempted to send on disposed socket");
+            RakLog.Trace("[UdpTransport] âš ï¸ Attempted to send on disposed socket");
             return;
         }
         try
@@ -78,7 +78,7 @@ public class UdpTransport : IDisposable
         }
         catch (SocketException ex)
         {
-            Console.WriteLine($"[UdpTransport] Send error to {remote}: {ex.Message}");
+            RakLog.Error($"[UdpTransport] Send error to {remote}: {ex.Message}");
         }
     }
 
@@ -88,7 +88,7 @@ public class UdpTransport : IDisposable
         {
             _socket.Close();
             _disposed = true;
-            Console.WriteLine($"[UdpTransport] Closed socket on port {_port}");
+            RakLog.Trace($"[UdpTransport] Closed socket on port {_port}");
         }
     }
 
@@ -121,7 +121,7 @@ public class UdpTransportRaw : IDisposable
         
         _socket.Bind(new IPEndPoint(IPAddress.Any, port));
         
-        Console.WriteLine($"[UdpTransportRaw] Socket bound to port {port}");
+        RakLog.Trace($"[UdpTransportRaw] Socket bound to port {port}");
     }
 
     public async Task<(int len, EndPoint remote)> ReceiveAsync(byte[] buffer)
@@ -139,7 +139,7 @@ public class UdpTransportRaw : IDisposable
         }
         catch (SocketException ex)
         {
-            Console.WriteLine($"[UdpTransportRaw] ReceiveAsync error: {ex.Message}");
+            RakLog.Error($"[UdpTransportRaw] ReceiveAsync error: {ex.Message}");
             return (0, new IPEndPoint(IPAddress.Any, 0));
         }
     }
@@ -154,7 +154,7 @@ public class UdpTransportRaw : IDisposable
         }
         catch (SocketException ex)
         {
-            Console.WriteLine($"[UdpTransportRaw] Send error to {remote}: {ex.Message}");
+            RakLog.Error($"[UdpTransportRaw] Send error to {remote}: {ex.Message}");
         }
     }
 
@@ -168,7 +168,7 @@ public class UdpTransportRaw : IDisposable
         }
         catch (SocketException ex)
         {
-            Console.WriteLine($"[UdpTransportRaw] Send error to {remote}: {ex.Message}");
+            RakLog.Error($"[UdpTransportRaw] Send error to {remote}: {ex.Message}");
         }
     }
 
@@ -178,7 +178,7 @@ public class UdpTransportRaw : IDisposable
         {
             _socket.Close();
             _disposed = true;
-            Console.WriteLine($"[UdpTransportRaw] Closed socket on port {_port}");
+            RakLog.Trace($"[UdpTransportRaw] Closed socket on port {_port}");
         }
     }
 

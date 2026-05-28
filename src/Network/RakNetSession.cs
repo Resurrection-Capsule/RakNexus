@@ -1,4 +1,4 @@
-using RakNexus.Protocol;
+﻿using RakNexus.Protocol;
 using RakNexus.Core;
 using System.Net;
 
@@ -44,13 +44,13 @@ public class RakNetSession
         
         _lastReliableSendTime = RakTime.GetTimeMS();
         
-        Console.WriteLine($"[RakNetSession] Created for {Address}");
+        RakLog.Trace($"[RakNetSession] Created for {Address}");
     }
 
     public void SetGuid(RakNetGUID guid)
     {
         Guid = guid;
-        Console.WriteLine($"[RakNetSession] GUID set to 0x{guid.G:X16}");
+        RakLog.Trace($"[RakNetSession] GUID set to 0x{guid.G:X16}");
     }
     
 
@@ -68,7 +68,7 @@ public class RakNetSession
             _listener.Send(data, len, _remoteEndPoint);
         });
         
-        Console.WriteLine($"[RakNetSession] Queued and flushed internal packet: 0x{packet.Data[0]:X2}");
+        RakLog.Trace($"[RakNetSession] Queued and flushed internal packet: 0x{packet.Data[0]:X2}");
     }
 
     public void Update(ulong nowUS)
@@ -102,10 +102,10 @@ public class RakNetSession
         ulong now = RakTime.GetTimeUS();
         var bs = new RakBitStream(data.ToArray(), data.Length, false);
         
-        Console.WriteLine($"[RakNetSession] HandleIncoming: {data.Length} bytes (State: {State})");
+        RakLog.Trace($"[RakNetSession] HandleIncoming: {data.Length} bytes (State: {State})");
         if (data.Length > 0)
         {
-            Console.WriteLine($"[RakNetSession] First byte: 0x{data[0]:X2}");
+            RakLog.Trace($"[RakNetSession] First byte: 0x{data[0]:X2}");
         }
         
         _reliability.ProcessDatagram(bs, now, OnInternalPacketReceived);
@@ -117,7 +117,7 @@ public class RakNetSession
 
         byte packetId = packet.Data[0];
         
-        Console.WriteLine($"[RakNetSession] Received internal packet: 0x{packetId:X2} ({(MessageId)packetId})");
+        RakLog.Trace($"[RakNetSession] Received internal packet: 0x{packetId:X2} ({(MessageId)packetId})");
 
         switch ((MessageId)packetId)
         {
@@ -153,11 +153,11 @@ public class RakNetSession
     {
         if (State == ConnectionState.Connected || State == ConnectionState.Connecting)
         {
-            Console.WriteLine("[RakNetSession] Ignoring duplicate CONNECTION_REQUEST (already processing/connected)");
+            RakLog.Trace("[RakNetSession] Ignoring duplicate CONNECTION_REQUEST (already processing/connected)");
             return;
         }
         
-        Console.WriteLine($"[RakNetSession] Processing CONNECTION_REQUEST (current state: {State})");
+        RakLog.Trace($"[RakNetSession] Processing CONNECTION_REQUEST (current state: {State})");
         
         var bs = new RakBitStream(packet.Data, packet.Data.Length, false);
         bs.IgnoreBytes(1);
@@ -171,15 +171,15 @@ public class RakNetSession
 
         Guid = clientGuid;
         
-        Console.WriteLine($"[RakNetSession] Client GUID: 0x{clientGuid.G:X16}");
-        Console.WriteLine($"[RakNetSession] Timestamp: {timestamp}");
+        RakLog.Trace($"[RakNetSession] Client GUID: 0x{clientGuid.G:X16}");
+        RakLog.Trace($"[RakNetSession] Timestamp: {timestamp}");
         
         byte o0 = (byte)((Address.BinaryAddress >> 24) & 0xFF);
         byte o1 = (byte)((Address.BinaryAddress >> 16) & 0xFF);
         byte o2 = (byte)((Address.BinaryAddress >> 8) & 0xFF);
         byte o3 = (byte)(Address.BinaryAddress & 0xFF);
-        Console.WriteLine($"[RakNetSession] Writing client address: {o0}.{o1}.{o2}.{o3}:{Address.Port}");
-        Console.WriteLine($"[RakNetSession] XORed bytes will be: [{(byte)~o0}, {(byte)~o1}, {(byte)~o2}, {(byte)~o3}]");
+        RakLog.Trace($"[RakNetSession] Writing client address: {o0}.{o1}.{o2}.{o3}:{Address.Port}");
+        RakLog.Trace($"[RakNetSession] XORed bytes will be: [{(byte)~o0}, {(byte)~o1}, {(byte)~o2}, {(byte)~o3}]");
 
         var response = new RakBitStream();
         response.Write((byte)MessageId.ID_CONNECTION_REQUEST_ACCEPTED);
@@ -198,26 +198,26 @@ public class RakNetSession
 
         int actualSize = response.GetNumberOfBytesUsed();
         var responseData = response.GetData();
-        Console.WriteLine($"[RakNetSession] CONN_REQ_ACCEPTED size: {actualSize} bytes (expected: 85)");
-        Console.WriteLine($"[RakNetSession] CONN_REQ_ACCEPTED bytes: {BitConverter.ToString(responseData, 0, Math.Min(20, actualSize))}");
+        RakLog.Trace($"[RakNetSession] CONN_REQ_ACCEPTED size: {actualSize} bytes (expected: 85)");
+        RakLog.Trace($"[RakNetSession] CONN_REQ_ACCEPTED bytes: {BitConverter.ToString(responseData, 0, Math.Min(20, actualSize))}");
 
         SendInternal(response, PacketPriority.IMMEDIATE_PRIORITY, 
             PacketReliability.RELIABLE_ORDERED, 0);
 
         State = ConnectionState.Connecting;
         
-        Console.WriteLine($"[RakNetSession] Connection accepted, sent CONN_REQ_ACCEPTED");
-        Console.WriteLine($"[RakNetSession] State -> Connecting (waiting for NEW_INCOMING_CONNECTION)");
+        RakLog.Trace($"[RakNetSession] Connection accepted, sent CONN_REQ_ACCEPTED");
+        RakLog.Trace($"[RakNetSession] State -> Connecting (waiting for NEW_INCOMING_CONNECTION)");
     }
 
     private void HandleNewIncomingConnection(InternalPacket packet)
     {
-        Console.WriteLine($"[RakNetSession] Received NEW_INCOMING_CONNECTION, data length: {packet.Data.Length}");
-        Console.WriteLine($"[RakNetSession] Raw bytes: {BitConverter.ToString(packet.Data, 0, Math.Min(20, packet.Data.Length))}");
+        RakLog.Trace($"[RakNetSession] Received NEW_INCOMING_CONNECTION, data length: {packet.Data.Length}");
+        RakLog.Trace($"[RakNetSession] Raw bytes: {BitConverter.ToString(packet.Data, 0, Math.Min(20, packet.Data.Length))}");
         
         if (State != ConnectionState.Connecting)
         {
-            Console.WriteLine($"[RakNetSession] Ignoring NEW_INCOMING_CONNECTION in state {State}");
+            RakLog.Trace($"[RakNetSession] Ignoring NEW_INCOMING_CONNECTION in state {State}");
             return;
         }
         
@@ -241,11 +241,11 @@ public class RakNetSession
         byte o1 = (byte)((serverAddr.BinaryAddress >> 16) & 0xFF);
         byte o2 = (byte)((serverAddr.BinaryAddress >> 8) & 0xFF);
         byte o3 = (byte)(serverAddr.BinaryAddress & 0xFF);
-        Console.WriteLine($"[RakNetSession] Client sees server as: {o0}.{o1}.{o2}.{o3}:{serverAddr.Port}");
-        Console.WriteLine($"[RakNetSession] Ping times: sent={sendPingTime}, pong={sendPongTime}");
+        RakLog.Trace($"[RakNetSession] Client sees server as: {o0}.{o1}.{o2}.{o3}:{serverAddr.Port}");
+        RakLog.Trace($"[RakNetSession] Ping times: sent={sendPingTime}, pong={sendPongTime}");
         
         State = ConnectionState.Connected;
-        Console.WriteLine($"[RakNetSession] RakNet Handshake COMPLETE - State -> Connected");
+        RakLog.Trace($"[RakNetSession] RakNet Handshake COMPLETE - State -> Connected");
         
         OnConnected?.Invoke();
         OnNewIncomingConnection?.Invoke();
@@ -258,7 +258,7 @@ public class RakNetSession
         ulong clientTime;
         bs.Read(out clientTime);
 
-        Console.WriteLine($"[RakNetSession] Handling PING with clientTime={clientTime}");
+        RakLog.Trace($"[RakNetSession] Handling PING with clientTime={clientTime}");
 
         var response = new RakBitStream();
         response.Write((byte)MessageId.ID_CONNECTED_PONG);
@@ -268,19 +268,19 @@ public class RakNetSession
         SendInternal(response, PacketPriority.IMMEDIATE_PRIORITY, 
             PacketReliability.UNRELIABLE, 0);
         
-        Console.WriteLine($"[RakNetSession] Forcing immediate PONG flush...");
+        RakLog.Trace($"[RakNetSession] Forcing immediate PONG flush...");
         ulong now = RakTime.GetTimeUS();
         _reliability.Update(now, (data, len) => {
             _listener.Send(data, len, _remoteEndPoint);
         });
-        Console.WriteLine($"[RakNetSession] PONG flush complete");
+        RakLog.Trace($"[RakNetSession] PONG flush complete");
     }
 
     private void CloseConnection(string reason)
     {
         if (State == ConnectionState.Disconnected) return;
         
-        Console.WriteLine($"[RakNetSession] Closing: {reason}");
+        RakLog.Trace($"[RakNetSession] Closing: {reason}");
         State = ConnectionState.Disconnected;
         Disconnected?.Invoke(reason);
     }
@@ -288,7 +288,7 @@ public class RakNetSession
     public void ForceDisconnect()
     {
         State = ConnectionState.Disconnected;
-        Console.WriteLine($"[RakNetSession] Force disconnected: {Address}");
+        RakLog.Trace($"[RakNetSession] Force disconnected: {Address}");
     }
 
     private void SendPing(ulong nowMS)
@@ -326,7 +326,7 @@ public class RakNetSession
             _listener.Send(data, len, _remoteEndPoint);
         });
         
-        Console.WriteLine($"[RakNetSession.SendInternal] Flushed packet immediately");
+        RakLog.Trace($"[RakNetSession.SendInternal] Flushed packet immediately");
     }
 
     public void Send(byte[] data, PacketPriority priority, PacketReliability reliability, byte channel, byte orderingChannel)
@@ -334,9 +334,9 @@ public class RakNetSession
         var actualReliability = PacketReliability.UNRELIABLE_WITH_ACK_RECEIPT;
         const byte FIXED_CHANNEL = 0;
         
-        Console.WriteLine($"[RakNetSession.Send] Packet 0x{data[0]:X2}, size={data.Length}");
-        Console.WriteLine($"[RakNetSession.Send] Requested: reliability={reliability}, channel={orderingChannel}");
-        Console.WriteLine($"[RakNetSession.Send] FORCING: reliability={actualReliability}, channel={FIXED_CHANNEL}");
+        RakLog.Trace($"[RakNetSession.Send] Packet 0x{data[0]:X2}, size={data.Length}");
+        RakLog.Trace($"[RakNetSession.Send] Requested: reliability={reliability}, channel={orderingChannel}");
+        RakLog.Trace($"[RakNetSession.Send] FORCING: reliability={actualReliability}, channel={FIXED_CHANNEL}");
         
         try
         {
@@ -361,11 +361,11 @@ public class RakNetSession
                 _lastReliableSendTime = RakTime.GetTimeMS();
             }
             
-            Console.WriteLine($"[RakNetSession.Send] Packet enqueued successfully");
+            RakLog.Trace($"[RakNetSession.Send] Packet enqueued successfully");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[RakNetSession.Send] ERROR: {ex.Message}");
+            RakLog.Error($"[RakNetSession.Send] ERROR: {ex.Message}");
             throw;
         }
     }

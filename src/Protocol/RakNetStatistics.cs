@@ -1,4 +1,4 @@
-namespace RakNexus.Protocol;
+﻿namespace RakNexus.Protocol;
 
 public class RakNetStatistics
 {
@@ -70,7 +70,7 @@ public class RakNetStatistics
     
     public void PrintStatistics()
     {
-        Console.WriteLine(ToString());
+        RakLog.Trace(ToString());
     }
     
     public override string ToString()

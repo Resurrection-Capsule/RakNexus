@@ -1,4 +1,4 @@
-using RakNexus.Core;
+﻿using RakNexus.Core;
 using DatagramSequenceNumberType = RakNexus.Core.uint24;
 
 namespace RakNexus.Protocol;
@@ -181,7 +181,7 @@ public class CongestionManager
         {
             ulong rtt = curTime - sendTime;
             
-            Console.WriteLine($"[CongestionManager] RTT for datagram {datagramNumber}: {rtt / 1000.0:F2}ms");
+            RakLog.Trace($"[CongestionManager] RTT for datagram {datagramNumber}: {rtt / 1000.0:F2}ms");
 
             if (RTT == UNSET_TIME_US)
             {

@@ -1,4 +1,4 @@
-using RakNexus.Core;
+﻿using RakNexus.Core;
 
 namespace RakNexus.Protocol;
 
@@ -64,14 +64,14 @@ public partial class ReliabilityLayer
             
             if (acks.Ranges.Count > 0)
             {
-                Console.WriteLine($"[ReliabilityLayer] UPDATE: Sending ACKs ({acks.Ranges.Count} ranges)");
+                RakLog.Trace($"[ReliabilityLayer] UPDATE: Sending ACKs ({acks.Ranges.Count} ranges)");
                 SendAcks(transmitAction);
                 congestionManager.ResetOldestAck();
             }
 
             if (naks.Ranges.Count > 0)
             {
-                Console.WriteLine($"[ReliabilityLayer] UPDATE: Sending NAKs ({naks.Ranges.Count} ranges)");
+                RakLog.Trace($"[ReliabilityLayer] UPDATE: Sending NAKs ({naks.Ranges.Count} ranges)");
                 var nakPacket = new RakBitStream();
                 nakPacket.Write((byte)0xA0); 
                 SerializeRangeList(nakPacket, naks); 
@@ -105,12 +105,12 @@ public partial class ReliabilityLayer
         
         if (packetsToSend.Count == 0) return;
 
-        Console.WriteLine($"[ReliabilityLayer] Sending {packetsToSend.Count} packets (bandwidth: {bandwidthAllowed} bytes)");
+        RakLog.Trace($"[ReliabilityLayer] Sending {packetsToSend.Count} packets (bandwidth: {bandwidthAllowed} bytes)");
 
         foreach (var packet in packetsToSend)
         {
             byte packetIdForLog = packet.Data != null && packet.Data.Length > 0 ? packet.Data[0] : (byte)0xFF;
-            Console.WriteLine($"[ProcessSendQueue] Processing packet 0x{packetIdForLog:X2}: Reliability={packet.Reliability} (value={(byte)packet.Reliability})");
+            RakLog.Trace($"[ProcessSendQueue] Processing packet 0x{packetIdForLog:X2}: Reliability={packet.Reliability} (value={(byte)packet.Reliability})");
 
             bool needsReliableMessageNumber = packet.Reliability == PacketReliability.RELIABLE ||
                                                packet.Reliability == PacketReliability.RELIABLE_ORDERED ||
@@ -121,11 +121,11 @@ public partial class ReliabilityLayer
             if (needsReliableMessageNumber)
             {
                 packet.ReliableMessageNumber = GetNextReliableMessageNumber();
-                Console.WriteLine($"[ProcessSendQueue] Assigned ReliableMessageNumber={packet.ReliableMessageNumber}");
+                RakLog.Trace($"[ProcessSendQueue] Assigned ReliableMessageNumber={packet.ReliableMessageNumber}");
             }
             else
             {
-                Console.WriteLine($"[ProcessSendQueue] SKIPPING ReliableMessageNumber (unreliable type)");
+                RakLog.Trace($"[ProcessSendQueue] SKIPPING ReliableMessageNumber (unreliable type)");
             }
             
             if (packet.Reliability == PacketReliability.RELIABLE_ORDERED ||
@@ -134,11 +134,11 @@ public partial class ReliabilityLayer
             {
                 var channel = _orderingChannels[packet.OrderingChannel];
                 packet.OrderingIndex = channel.GetNextSendOrderingIndex();
-                Console.WriteLine($"[ProcessSendQueue] Assigned OrderingIndex={packet.OrderingIndex} on channel {packet.OrderingChannel}");
+                RakLog.Trace($"[ProcessSendQueue] Assigned OrderingIndex={packet.OrderingIndex} on channel {packet.OrderingChannel}");
             }
             else
             {
-                Console.WriteLine($"[ProcessSendQueue] SKIPPING OrderingIndex (unordered reliability)");
+                RakLog.Trace($"[ProcessSendQueue] SKIPPING OrderingIndex (unordered reliability)");
             }
             
             var datagram = new RakBitStream();
@@ -183,7 +183,7 @@ public partial class ReliabilityLayer
         
         if (expiredPackets.Count == 0) return;
 
-        Console.WriteLine($"[ReliabilityLayer] Resending {expiredPackets.Count} expired packets");
+        RakLog.Trace($"[ReliabilityLayer] Resending {expiredPackets.Count} expired packets");
 
         foreach (var packet in expiredPackets)
         {
@@ -234,7 +234,7 @@ public partial class ReliabilityLayer
         ushort count;
         if (!bs.Read(out count)) return;
         
-        Console.WriteLine($"[HandleAck] Received ACK for {count} range(s)");
+        RakLog.Trace($"[HandleAck] Received ACK for {count} range(s)");
         
         for (uint i = 0; i < count; i++)
         {
@@ -254,7 +254,7 @@ public partial class ReliabilityLayer
                 maxIndex = minIndex;
             }
 
-            Console.WriteLine($"[HandleAck] Range: {minIndex} to {maxIndex}");
+            RakLog.Trace($"[HandleAck] Range: {minIndex} to {maxIndex}");
 
             for (uint24 datagramNum = minIndex; datagramNum <= maxIndex; datagramNum++)
             {
@@ -264,7 +264,7 @@ public partial class ReliabilityLayer
                     
                     if (ackedPacket != null)
                     {
-                        Console.WriteLine($"[HandleAck] Datagram {datagramNum} → Message {messageNum} ACKed");
+                        RakLog.Trace($"[HandleAck] Datagram {datagramNum} â†’ Message {messageNum} ACKed");
                         congestionManager.OnGotAck(time, datagramNum);
                     }
                     
@@ -280,7 +280,7 @@ public partial class ReliabilityLayer
         ushort count;
         if (!bs.Read(out count)) return;
         
-        Console.WriteLine($"[HandleNak] Received NAK for {count} range(s)");
+        RakLog.Trace($"[HandleNak] Received NAK for {count} range(s)");
         
         for (uint i = 0; i < count; i++)
         {
@@ -298,7 +298,7 @@ public partial class ReliabilityLayer
                 maxIndex = minIndex;
             }
             
-            Console.WriteLine($"[HandleNak] Range: {minIndex} to {maxIndex}");
+            RakLog.Trace($"[HandleNak] Range: {minIndex} to {maxIndex}");
             
             for (uint24 datagramNum = minIndex; datagramNum <= maxIndex; datagramNum++)
             {
@@ -306,7 +306,7 @@ public partial class ReliabilityLayer
                 {
                     resendQueue.OnNak(messageNum, time);
                     
-                    Console.WriteLine($"[HandleNak] Datagram {datagramNum} → Message {messageNum} marked for immediate resend");
+                    RakLog.Trace($"[HandleNak] Datagram {datagramNum} â†’ Message {messageNum} marked for immediate resend");
                     
                     congestionManager.OnNAK(time, datagramNum);
                 }
@@ -351,19 +351,19 @@ public partial class ReliabilityLayer
         uint24 datagramNumber;
         bs.Read(out datagramNumber);
         
-        Console.WriteLine($"[ReliabilityLayer] Datagram Number: {datagramNumber}");
-        Console.WriteLine($"[ReliabilityLayer] Base Index: {_receivedPacketsBaseIndex}");
+        RakLog.Trace($"[ReliabilityLayer] Datagram Number: {datagramNumber}");
+        RakLog.Trace($"[ReliabilityLayer] Base Index: {_receivedPacketsBaseIndex}");
 
         lock (_syncLock) 
         {
             if (IsDuplicate(datagramNumber))
             {
-                Console.WriteLine($"[ReliabilityLayer] Duplicate datagram #{datagramNumber}");
+                RakLog.Trace($"[ReliabilityLayer] Duplicate datagram #{datagramNumber}");
                 acks.Insert(datagramNumber);
                 return;
             }
             
-            Console.WriteLine($"[ReliabilityLayer] NEW datagram #{datagramNumber} - Processing...");
+            RakLog.Trace($"[ReliabilityLayer] NEW datagram #{datagramNumber} - Processing...");
             MarkDatagramReceived(datagramNumber);
             acks.Insert(datagramNumber);
 
@@ -371,7 +371,7 @@ public partial class ReliabilityLayer
             congestionManager.OnGotPacket(datagramNumber, isContinuousSend, time, (uint)bs.GetNumberOfBytesUsed(), out skipped);
             if (skipped > 0)
             {
-                Console.WriteLine($"[ReliabilityLayer] Detected {skipped} skipped datagrams, adding to NAKs");
+                RakLog.Trace($"[ReliabilityLayer] Detected {skipped} skipped datagrams, adding to NAKs");
                 uint24 start = datagramNumber - (uint24)skipped;
                 for (uint24 i = start; i < datagramNumber; i++) naks.Insert(i);
             }
@@ -397,28 +397,28 @@ public partial class ReliabilityLayer
 
         uint diff = datagramNumber.Value - _receivedPacketsBaseIndex.Value;
         
-        Console.WriteLine($"[IsDuplicate] Checking: datagram={datagramNumber}, base={_receivedPacketsBaseIndex}, diff={diff}");
+        RakLog.Trace($"[IsDuplicate] Checking: datagram={datagramNumber}, base={_receivedPacketsBaseIndex}, diff={diff}");
         
         if (diff == 0) 
         {
-            Console.WriteLine($"[IsDuplicate] diff==0 -> NOT duplicate (expected packet)");
+            RakLog.Trace($"[IsDuplicate] diff==0 -> NOT duplicate (expected packet)");
             return false;
         }
 
         if (diff > HALF_RANGE) 
         {
-            Console.WriteLine($"[IsDuplicate] diff > HALF_RANGE -> IS duplicate (old packet)");
+            RakLog.Trace($"[IsDuplicate] diff > HALF_RANGE -> IS duplicate (old packet)");
             return true;
         }
         
         if (diff < DATAGRAM_HISTORY_SIZE)
         {
             bool alreadyReceived = _hasReceivedPacketQueue[diff];
-            Console.WriteLine($"[IsDuplicate] diff < HISTORY_SIZE -> history[{diff}] = {alreadyReceived}");
+            RakLog.Trace($"[IsDuplicate] diff < HISTORY_SIZE -> history[{diff}] = {alreadyReceived}");
             return alreadyReceived;
         }
 
-        Console.WriteLine($"[IsDuplicate] diff too large -> NOT duplicate (gap)");
+        RakLog.Trace($"[IsDuplicate] diff too large -> NOT duplicate (gap)");
         return false;
     }
 
@@ -461,23 +461,23 @@ public partial class ReliabilityLayer
 
     private void HandleOrdering(InternalPacket packet, Action<InternalPacket> onMessageReceived)
     {
-        Console.WriteLine($"[HandleOrdering] Reliability: {packet.Reliability}");
+        RakLog.Trace($"[HandleOrdering] Reliability: {packet.Reliability}");
         
         if (packet.Reliability == PacketReliability.RELIABLE_ORDERED || 
             packet.Reliability == PacketReliability.RELIABLE_ORDERED_WITH_ACK_RECEIPT)
         {
-            Console.WriteLine($"[HandleOrdering] Ordered packet - channel {packet.OrderingChannel}");
+            RakLog.Trace($"[HandleOrdering] Ordered packet - channel {packet.OrderingChannel}");
             var channel = _orderingChannels[packet.OrderingChannel];
             channel.Push(packet);
             
             var inOrder = channel.PopInOrder().ToList();
-            Console.WriteLine($"[HandleOrdering] Delivering {inOrder.Count} ordered packets");
+            RakLog.Trace($"[HandleOrdering] Delivering {inOrder.Count} ordered packets");
             
             foreach (var p in inOrder) onMessageReceived(p);
         }
         else
         {
-            Console.WriteLine($"[HandleOrdering] Unordered packet - delivering immediately");
+            RakLog.Trace($"[HandleOrdering] Unordered packet - delivering immediately");
             onMessageReceived(packet);
         }
     }
@@ -539,7 +539,7 @@ public partial class ReliabilityLayer
         int dataPerPacket = maxDataSize;
         uint splitPacketCount = (uint)((packet.Data.Length + dataPerPacket - 1) / dataPerPacket);
         
-        Console.WriteLine($"[ReliabilityLayer] Splitting packet into {splitPacketCount} chunks");
+        RakLog.Trace($"[ReliabilityLayer] Splitting packet into {splitPacketCount} chunks");
         
         var splitPackets = new List<InternalPacket>();
         
@@ -564,7 +564,7 @@ public partial class ReliabilityLayer
             
             Array.Copy(packet.Data, offset, splitPacket.Data, 0, length);
             
-            Console.WriteLine($"[ReliabilityLayer] Split chunk {splitPacketIndex}/{splitPacketCount}: {length} bytes");
+            RakLog.Trace($"[ReliabilityLayer] Split chunk {splitPacketIndex}/{splitPacketCount}: {length} bytes");
             
             splitPackets.Add(splitPacket);
         }
