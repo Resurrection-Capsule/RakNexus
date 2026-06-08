@@ -1,0 +1,13 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    uses: Resurrection-Capsule/.github/.github/workflows/dotnet-nuget.yml@v1
+    with:
+      project: src/RakNexus.csproj
+      solution: RakNexus.slnx
+    secrets: inherit

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>RakNexus</PackageId>
+    <Description>Custom C# implementation of the RakNet 3.92 UDP networking protocol, used by the ReCap Darkspore private server.</Description>
+    <PackageTags>raknet;udp;networking;game-networking;darkspore;recap</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RakNexus.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -27,7 +27,7 @@ public class UdpTransport : IDisposable
             
             if (result.Buffer.Length > buffer.Length)
             {
-                RakLog.Trace($"[UdpTransport] âš ï¸ Received packet too large! " +
+                RakLog.Trace($"[UdpTransport] Received packet too large! " +
                     $"Got {result.Buffer.Length} bytes, buffer is {buffer.Length} bytes");
                 return (0, result.RemoteEndPoint);
             }
@@ -46,7 +46,7 @@ public class UdpTransport : IDisposable
     {
         if (_disposed)
         {
-            RakLog.Trace("[UdpTransport] âš ï¸ Attempted to send on disposed socket");
+            RakLog.Trace("[UdpTransport] Attempted to send on disposed socket");
             return;
         }
         try
@@ -67,7 +67,7 @@ public class UdpTransport : IDisposable
     {
         if (_disposed)
         {
-            RakLog.Trace("[UdpTransport] âš ï¸ Attempted to send on disposed socket");
+            RakLog.Trace("[UdpTransport] Attempted to send on disposed socket");
             return;
         }
         try

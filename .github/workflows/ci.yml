@@ -1,0 +1,14 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    uses: Resurrection-Capsule/.github/.github/workflows/dotnet-ci.yml@v1
+    with:
+      solution: RakNexus.slnx
+    secrets: inherit

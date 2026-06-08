@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RakNexus.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RakNexus.Tests.csproj" />
+  </Folder>
+</Solution>
